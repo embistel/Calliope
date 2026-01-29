@@ -1,0 +1,6 @@
+<% if @insert_mode && @previous_item %>
+  <%= turbo_stream.after dom_id(@previous_item), partial: "dubbing_items/dubbing_item", locals: { dubbing_item: @dubbing_item, autofocus: true } %>
+<% else %>
+  <%= turbo_stream.append "dubbing_items", partial: "dubbing_items/dubbing_item", locals: { dubbing_item: @dubbing_item, autofocus: true } %>
+<% end %>
+<%= turbo_stream.remove "empty_state_prompt" %>

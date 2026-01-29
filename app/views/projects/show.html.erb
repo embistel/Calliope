@@ -1,0 +1,47 @@
+<div class="project-header" data-controller="project-title">
+  <div class="project-title-container">
+    <h2 class="project-title" id="<%= dom_id(@project, :header) %>" data-project-title-target="text" data-action="click->project-title#edit">
+      <%= @project.title %>
+    </h2>
+    
+    <%= form_with model: @project, class: "project-title-form" do |f| %>
+      <%= f.text_field :title, 
+          class: "project-title-input", 
+          data: { 
+            project_title_target: "input",
+            action: "blur->project-title#save keydown->project-title#handleKeydown"
+          } %>
+    <% end %>
+  </div>
+  <span class="project-meta">Created <%= time_ago_in_words(@project.created_at) %> ago</span>
+</div>
+
+<div class="dubbing-items-container" id="dubbing_items">
+  <%= render @project.dubbing_items.order(position: :asc) %>
+  
+  <% if @project.dubbing_items.empty? %>
+    <div id="empty_state_prompt">
+      <%= button_to "Start Dubbing (Create First Item)", project_dubbing_items_path(@project), class: "start-dubbing-btn" %>
+    </div>
+  <% end %>
+</div>
+
+<div class="hidden">
+  <%= form_with url: project_dubbing_items_path(@project), method: :post, id: "new_dubbing_item_form" do |f| %>
+  <% end %>
+</div>
+
+<script>
+  document.addEventListener("create-next", function(event) {
+    document.getElementById("new_dubbing_item_form").requestSubmit();
+  });
+  
+  document.addEventListener("delete-me", function(event) {
+    // Handling deletion from stimulus controller event
+    // The controller itself should probably trigger the delete request, but we can also do it here if needed
+    // Actually better to let the stimulus controller handle the delete request via a form or link
+    // But for the 'create new' on Enter from the last item, we need a way to trigger creation.
+    
+    // For delete, we will handle it inside the partial with a proper delete link
+  });
+</script>
