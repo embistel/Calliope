@@ -1,0 +1,112 @@
+<div id="project_video_controls" data-controller="video-generator" data-video-generator-project-id-value="<%= project.id %>">
+  <% if local_assigns[:error].present? %>
+    <div class="alert alert-error">
+      <%= error %>
+    </div>
+  <% end %>
+
+  <% case (project.video_status || 'not_started') %>
+  <% when 'not_started', 'failed', 'cancelled' %>
+    <div class="video-generation-container">
+      <div class="video-generation-info">
+        <span class="video-status-text">
+          <% if project.video_status == 'failed' %>
+            비디오 생성 실패
+          <% elsif project.video_status == 'cancelled' %>
+            비디오 생성 취소됨
+          <% else %>
+            비디오 생성 준비됨
+          <% end %>
+        </span>
+        <span class="video-items-count">
+          (<%= project.dubbing_items.count %>개 항목)
+        </span>
+      </div>
+      
+      <% if project.dubbing_items.all? { |item| item.audio.attached? } %>
+        <button type="button"
+                class="generate-video-btn"
+                data-action="click->video-generator#generateVideo">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+            <line x1="7" y1="2" x2="7" y2="22"></line>
+            <line x1="17" y1="2" x2="17" y2="22"></line>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <line x1="2" y1="7" x2="7" y2="7"></line>
+            <line x1="2" y1="17" x2="7" y2="17"></line>
+            <line x1="17" y1="17" x2="22" y2="17"></line>
+            <line x1="17" y1="7" x2="22" y2="7"></line>
+          </svg>
+          <span>Generate Video</span>
+        </button>
+      <% else %>
+        <div class="video-requirement-hint">
+          모든 항목에 오디오를 먼저 생성해주세요
+        </div>
+      <% end %>
+    </div>
+
+  <% when 'generating' %>
+    <div class="video-generation-container generating">
+      <div class="video-generation-info">
+        <span class="video-status-text">비디오 생성 중...</span>
+        <span class="video-progress-text" data-video-generator-target="progressText"><%= project.video_progress %>%</span>
+      </div>
+      
+      <div class="video-progress-bar">
+        <div class="video-progress-fill" style="width: <%= project.video_progress %>%" data-video-generator-target="progressBar"></div>
+      </div>
+      
+      <button type="button"
+              class="cancel-video-btn"
+              data-action="click->video-generator#cancelVideo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="15" y1="9" x2="9" y2="15"></line>
+          <line x1="9" y1="9" x2="15" y2="15"></line>
+        </svg>
+        <span>Cancel</span>
+      </button>
+    </div>
+
+  <% when 'completed' %>
+    <div class="video-completed-container">
+      <div class="video-generation-info">
+        <span class="video-status-text">비디오 생성 완료!</span>
+      </div>
+      
+      <div class="video-player-controls">
+        <% if project.video.attached? %>
+          <video controls class="video-player">
+            <source src="<%= url_for(project.video) %>" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+        <% end %>
+        
+        <div class="video-actions">
+          <%= link_to url_for(project.video), 
+              download: "video_#{project.id}.mp4",
+              class: "download-video-btn" do %>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Download</span>
+          <% end %>
+          
+          <button type="button"
+                  class="regenerate-video-btn"
+                  data-action="click->video-generator#regenerateVideo">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            <span>Regenerate</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>

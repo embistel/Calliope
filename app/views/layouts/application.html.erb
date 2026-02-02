@@ -21,6 +21,8 @@
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
+    <%# Enable Turbo Streams for real-time updates %>
+    <%= turbo_stream_from "project_#{@project&.id}" if @project %>
   </head>
 
   <body class="app-body">
