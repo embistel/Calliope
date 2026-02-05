@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_29_122026) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_01_141621) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -42,6 +42,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_29_122026) do
   create_table "dubbing_items", force: :cascade do |t|
     t.text "content"
     t.datetime "created_at", null: false
+    t.text "instruct"
     t.integer "position"
     t.integer "project_id", null: false
     t.datetime "updated_at", null: false
@@ -52,6 +53,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_29_122026) do
     t.datetime "created_at", null: false
     t.string "title"
     t.datetime "updated_at", null: false
+    t.integer "video_progress"
+    t.string "video_status"
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"

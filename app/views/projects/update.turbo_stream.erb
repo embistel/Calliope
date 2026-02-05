@@ -16,3 +16,7 @@
     <%= @project.title %>
   </h2>
 <% end %>
+
+<%= turbo_stream.replace "project_video_controls" do %>
+  <%= render "projects/video_controls", project: @project %>
+<% end %>

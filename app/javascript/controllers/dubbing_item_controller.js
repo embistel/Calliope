@@ -3,15 +3,27 @@ import { Turbo } from "@hotwired/turbo-rails"
 
 // Connects to data-controller="dubbing-item"
 export default class extends Controller {
-  static targets = ["textarea", "thumbnail", "form", "fileInput"]
+  static targets = ["textarea", "thumbnail", "form", "fileInput", "dubbingControls", "progressBar", "instructButton", "instructContainer", "instructTextarea"]
   static values = {
     projectId: Number,
     itemId: Number,
-    focusOnConnect: Boolean
+    focusOnConnect: Boolean,
+    instructVisible: { type: Boolean, default: false }
   }
 
   connect() {
     this.resize()
+    
+    // Check if instruct field has content and set visibility state
+    if (this.hasInstructTextareaTarget && this.hasInstructButtonTarget) {
+      const hasInstructContent = this.instructTextareaTarget.value.trim() !== ''
+      this.instructVisibleValue = hasInstructContent
+      
+      if (hasInstructContent) {
+        this.instructButtonTarget.classList.add('active')
+      }
+    }
+    
     if (this.focusOnConnectValue) {
       // Use multiple attempts to ensure focus is caught after DOM updates
       const tryFocus = () => {
@@ -37,7 +49,11 @@ export default class extends Controller {
 
   handleKeydown(event) {
     if (event.key === "Enter") {
-      if (!event.shiftKey) {
+      if (event.altKey) {
+        // Alt+Enter toggles the instruct field
+        event.preventDefault()
+        this.toggleInstruct()
+      } else if (!event.shiftKey) {
         event.preventDefault()
         this.saveAndCreateNext()
       }
@@ -199,5 +215,134 @@ export default class extends Controller {
         Turbo.renderStreamMessage(html)
       })
       .catch(error => console.error("Error uploading image:", error))
+  }
+
+  playDubbing(event) {
+    event.preventDefault()
+    const audioUrl = event.currentTarget.dataset.audioUrl
+    const audioElement = document.getElementById(`audio-${this.itemIdValue}`)
+
+    if (audioElement) {
+      audioElement.src = audioUrl
+      audioElement.play()
+    }
+  }
+
+  generateDubbing(event) {
+    event.preventDefault()
+
+    // Show loading state
+    const button = event.currentTarget
+    const btnText = button.querySelector('.btn-text')
+    const generatingText = button.querySelector('.generating-text')
+
+    btnText.style.display = 'none'
+    generatingText.style.display = 'inline'
+    button.disabled = true
+
+    // Progress Bar Setup
+    let progress = 0
+    let progressInterval = null
+    const progressFill = this.hasProgressBarTarget ? this.progressBarTarget.querySelector('.progress-bar-fill') : null
+
+    if (this.hasProgressBarTarget && progressFill) {
+      this.progressBarTarget.style.display = 'block'
+      progressFill.style.animation = 'none'
+      progressFill.style.width = '0%'
+
+      // Simulate progress
+      // Most of the time is spent loading the model and generating (approx 15-30s depending on text)
+      progressInterval = setInterval(() => {
+        if (progress < 30) {
+          progress += 1 // Early stage moves faster
+        } else if (progress < 60) {
+          progress += 0.5 // Model loading
+        } else if (progress < 95) {
+          progress += 0.2 // Generation
+        }
+
+        if (progress > 95) progress = 95 // Cap at 95 until done
+        progressFill.style.width = `${progress}%`
+      }, 200)
+    }
+
+    // Make API call
+    const url = `/projects/${this.projectIdValue}/dubbing_items/${this.itemIdValue}/generate_dubbing`
+
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content,
+        "Accept": "text/vnd.turbo-stream.html"
+      }
+    })
+      .then(response => response.text())
+      .then(html => {
+        // Complete progress bar
+        if (progressFill) {
+          progressFill.style.width = '100%'
+          setTimeout(() => {
+            Turbo.renderStreamMessage(html)
+            this.resetButtonState(button, btnText, generatingText)
+          }, 300)
+        } else {
+          Turbo.renderStreamMessage(html)
+          this.resetButtonState(button, btnText, generatingText)
+        }
+      })
+      .catch(error => {
+        console.error("Error generating dubbing:", error)
+        this.resetButtonState(button, btnText, generatingText)
+      })
+      .finally(() => {
+        if (progressInterval) clearInterval(progressInterval)
+      })
+  }
+
+  resetButtonState(button, btnText, generatingText) {
+    btnText.style.display = 'inline'
+    generatingText.style.display = 'none'
+    button.disabled = false
+
+    if (this.hasProgressBarTarget) {
+      this.progressBarTarget.style.display = 'none'
+    }
+  }
+
+  toggleInstruct() {
+    this.instructVisibleValue = !this.instructVisibleValue
+    
+    if (this.instructVisibleValue) {
+      this.instructContainerTarget.style.display = 'block'
+      this.instructButtonTarget.classList.add('active')
+      
+      // Focus on the instruct textarea
+      setTimeout(() => {
+        if (this.hasInstructTextareaTarget) {
+          this.instructTextareaTarget.focus()
+          this.resizeInstructTextarea()
+        }
+      }, 50)
+    } else {
+      this.instructContainerTarget.style.display = 'none'
+      this.instructButtonTarget.classList.remove('active')
+      
+      // Clear the instruct field when hiding
+      if (this.hasInstructTextareaTarget) {
+        this.instructTextareaTarget.value = ''
+      }
+    }
+  }
+
+  handleInstructInput() {
+    this.resizeInstructTextarea()
+  }
+
+  resizeInstructTextarea() {
+    if (!this.hasInstructTextareaTarget) return
+    
+    this.instructTextareaTarget.style.height = "auto"
+    const scrollHeight = this.instructTextareaTarget.scrollHeight
+    this.instructTextareaTarget.style.height = `${scrollHeight}px`
   }
 }

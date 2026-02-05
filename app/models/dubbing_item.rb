@@ -1,6 +1,7 @@
 class DubbingItem < ApplicationRecord
   belongs_to :project
   has_one_attached :image
+  has_one_attached :audio
   
   acts_as_list scope: :project
   

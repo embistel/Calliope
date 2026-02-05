@@ -16,6 +16,9 @@
   <span class="project-meta">Created <%= time_ago_in_words(@project.created_at) %> ago</span>
 </div>
 
+<!-- Video Generation Controls -->
+<%= render 'projects/video_controls', project: @project %>
+
 <div class="dubbing-items-container" id="dubbing_items">
   <%= render @project.dubbing_items.order(position: :asc) %>
   

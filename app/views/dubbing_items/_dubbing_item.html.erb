@@ -21,19 +21,97 @@
     <%= form_with url: upload_image_project_dubbing_item_path(dubbing_item.project, dubbing_item), method: :post, class: "hidden" do |f| %>
       <%= f.file_field :image, data: { dubbing_item_target: "fileInput" }, accept: "image/*" %>
     <% end %>
+
+    <!-- Dubbing Controls -->
+    <div class="dubbing-controls" data-dubbing-item-target="dubbingControls">
+      <button type="button"
+              class="generate-dubbing-btn"
+              data-action="click->dubbing-item#generateDubbing"
+              title="Generate Dubbing">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+          <line x1="12" y1="19" x2="12" y2="23"></line>
+          <line x1="8" y1="23" x2="16" y2="23"></line>
+        </svg>
+        <span class="btn-text">Generate</span>
+        <span class="generating-text" style="display: none;">생성 중...</span>
+      </button>
+
+      <% if dubbing_item.audio.attached? %>
+        <button type="button" 
+                class="play-dubbing-btn"
+                data-action="click->dubbing-item#playDubbing"
+                title="Play Dubbing"
+                data-audio-url="<%= url_for(dubbing_item.audio) %>">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span>Play</span>
+        </button>
+      <% else %>
+        <button type="button" 
+                class="play-dubbing-btn disabled"
+                disabled
+                title="Generate dubbing first">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span>Play</span>
+        </button>
+      <% end %>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="generate-progress" data-dubbing-item-target="progressBar" style="display: none;">
+      <div class="progress-bar-fill"></div>
+    </div>
+
+    <!-- Hidden audio element -->
+    <audio id="audio-<%= dubbing_item.id %>" style="display: none;"></audio>
   </div>
 
   <!-- Text Input Area -->
   <div class="text-area-wrapper" style="flex: 1; display: flex; flex-direction: column;">
     <%= form_with model: [dubbing_item.project, dubbing_item], data: { dubbing_item_target: "form" } do |f| %>
-      <%= f.text_area :content, 
-          class: "dubbing-textarea", 
-          placeholder: "Type your dubbing text here...",
-          rows: 1,
-          data: { 
-            dubbing_item_target: "textarea",
-            action: "input->dubbing-item#handleInput change->dubbing-item#save keydown->dubbing-item#handleKeydown"
-          } %>
+      <div class="dubbing-text-container">
+        <%= f.text_area :content, 
+            class: "dubbing-textarea", 
+            placeholder: "Type your dubbing text here...",
+            rows: 1,
+            data: { 
+              dubbing_item_target: "textarea",
+              action: "input->dubbing-item#handleInput change->dubbing-item#save keydown->dubbing-item#handleKeydown"
+            } %>
+        
+        <!-- Instruct Button -->
+        <button type="button" 
+                class="instruct-toggle-btn" 
+                data-action="click->dubbing-item#toggleInstruct"
+                title="Add Narration Instruct"
+                data-dubbing-item-target="instructButton">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="16"></line>
+            <line x1="8" y1="12" x2="16" y2="12"></line>
+          </svg>
+          !
+        </button>
+      </div>
+
+      <!-- Instruct Field (hidden by default, shown if content exists) -->
+      <div class="instruct-field-container" data-dubbing-item-target="instructContainer" style="display: <%= dubbing_item.instruct.present? ? 'block' : 'none' %>;">
+        <div class="instruct-separator"></div>
+        <div class="instruct-label">나래이션 지시어</div>
+        <%= f.text_area :instruct,
+            :class => "instruct-textarea",
+            :placeholder => "ex) 밝고 명랑한 목소리로 말해주세요",
+            :rows => 1,
+            :data => {
+              :"dubbing_item_target" => "instructTextarea",
+              :"action" => "input->dubbing-item#handleInstructInput change->dubbing-item#save"
+            } %>
+      </div>
     <% end %>
   </div>
 
