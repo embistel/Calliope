@@ -14,6 +14,13 @@ export default class extends Controller {
   connect() {
     this.resize()
     
+    // Check if this item is currently being generated
+    const itemId = this.itemIdValue
+    if (window.generatingItems && window.generatingItems.has(itemId)) {
+      console.log('Item', itemId, 'is currently being generated, setting loading state')
+      this.setGeneratingState()
+    }
+    
     // Check if instruct field has content and set visibility state
     if (this.hasInstructTextareaTarget && this.hasInstructButtonTarget) {
       const hasInstructContent = this.instructTextareaTarget.value.trim() !== ''
@@ -38,6 +45,21 @@ export default class extends Controller {
       requestAnimationFrame(tryFocus)
       setTimeout(tryFocus, 50)
       setTimeout(tryFocus, 150)
+    }
+  }
+
+  setGeneratingState() {
+    // Find the generate button and set it to generating state
+    const generateBtn = this.element.querySelector('.generate-dubbing-btn')
+    if (generateBtn) {
+      const btnText = generateBtn.querySelector('.btn-text')
+      const generatingText = generateBtn.querySelector('.generating-text')
+      
+      if (btnText && generatingText) {
+        btnText.style.display = 'none'
+        generatingText.style.display = 'inline'
+        generateBtn.disabled = true
+      }
     }
   }
 
@@ -230,12 +252,45 @@ export default class extends Controller {
 
   generateDubbing(event) {
     event.preventDefault()
+    console.log('Generate dubbing button clicked')
 
     // Show loading state
     const button = event.currentTarget
     const btnText = button.querySelector('.btn-text')
     const generatingText = button.querySelector('.generating-text')
 
+    // Check if button is already disabled (prevent double clicks)
+    if (button.disabled) {
+      console.log('Button already disabled, ignoring click')
+      return
+    }
+
+    // Check if there's already a generation in progress for this item
+    const itemId = this.itemIdValue
+    if (window.generatingItems && window.generatingItems.has(itemId)) {
+      console.log('Generation already in progress for item', itemId)
+      return
+    }
+
+    // Simple debouncing: check if button was clicked recently
+    const now = Date.now()
+    const lastClickKey = `lastClick_${itemId}`
+    const lastClick = window[lastClickKey] || 0
+    
+    if (now - lastClick < 3000) { // 3 second cooldown
+      console.log('Button clicked too recently, ignoring')
+      return
+    }
+    
+    window[lastClickKey] = now
+
+    // Mark this item as being generated
+    if (!window.generatingItems) {
+      window.generatingItems = new Set()
+    }
+    window.generatingItems.add(itemId)
+
+    console.log('Setting button to loading state')
     btnText.style.display = 'none'
     generatingText.style.display = 'inline'
     button.disabled = true
@@ -268,7 +323,8 @@ export default class extends Controller {
 
     // Make API call
     const url = `/projects/${this.projectIdValue}/dubbing_items/${this.itemIdValue}/generate_dubbing`
-
+    
+    console.log('Making fetch request to:', url)
     fetch(url, {
       method: "POST",
       headers: {
@@ -276,30 +332,58 @@ export default class extends Controller {
         "Accept": "text/vnd.turbo-stream.html"
       }
     })
-      .then(response => response.text())
+      .then(response => {
+        console.log('Received response:', response.status)
+        if (!response.ok) {
+          console.error('Response not OK:', response.status, response.statusText)
+          // Don't throw error yet, let's see what the turbo stream contains
+        }
+        return response.text()
+      })
       .then(html => {
+        console.log('Processing turbo stream response')
         // Complete progress bar
         if (progressFill) {
           progressFill.style.width = '100%'
           setTimeout(() => {
+            console.log('Applying turbo stream')
             Turbo.renderStreamMessage(html)
-            this.resetButtonState(button, btnText, generatingText)
+            // Remove item from generating set
+            if (window.generatingItems) {
+              window.generatingItems.delete(itemId)
+            }
+            // Reset click timer
+            delete window[`lastClick_${itemId}`]
           }, 300)
         } else {
+          console.log('No progress bar, applying turbo stream')
           Turbo.renderStreamMessage(html)
-          this.resetButtonState(button, btnText, generatingText)
+          // Remove item from generating set
+          if (window.generatingItems) {
+            window.generatingItems.delete(itemId)
+          }
+          // Reset click timer
+          delete window[`lastClick_${itemId}`]
         }
       })
       .catch(error => {
         console.error("Error generating dubbing:", error)
         this.resetButtonState(button, btnText, generatingText)
+        // Remove item from generating set
+        if (window.generatingItems) {
+          window.generatingItems.delete(itemId)
+        }
+        // Reset click timer
+        delete window[`lastClick_${itemId}`]
       })
       .finally(() => {
+        console.log('Request completed, clearing progress interval')
         if (progressInterval) clearInterval(progressInterval)
       })
   }
 
   resetButtonState(button, btnText, generatingText) {
+    console.log('Resetting button state')
     btnText.style.display = 'inline'
     generatingText.style.display = 'none'
     button.disabled = false

@@ -35,6 +35,7 @@ class TTSDaemon:
         self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
         self.request_dir = Path("/tmp/tts_requests")
         self.response_dir = Path("/tmp/tts_responses")
+        self.health_file = Path("/tmp/tts_daemon_ready")
         self.running = True
         
         # Create directories
@@ -72,6 +73,11 @@ class TTSDaemon:
             t1 = time.time()
             logger.info(f"Model loaded successfully in {t1 - t0:.2f}s")
             logger.info("TTS Daemon ready to serve requests!")
+            
+            # Create health check file
+            with open(self.health_file, 'w') as f:
+                f.write(f"ready:{time.time()}")
+            logger.info(f"Health check file created: {self.health_file}")
             
         except Exception as e:
             logger.error(f"Failed to load model: {str(e)}")

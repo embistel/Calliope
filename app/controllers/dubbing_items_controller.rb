@@ -86,28 +86,55 @@ class DubbingItemsController < ApplicationController
       output_path: wav_path.to_s
     }
     
-    # Ensure TTS daemon is running
-    unless system("pgrep -f tts_daemon.py > /dev/null")
-      Rails.logger.info "Starting TTS daemon..."
+    # Ensure TTS daemon is running and ready
+    daemon_running = system("pgrep -f tts_daemon.py > /dev/null")
+    daemon_ready = File.exist?("/tmp/tts_daemon_ready")
+    Rails.logger.info "TTS daemon running: #{daemon_running}, ready: #{daemon_ready}"
+    
+    unless daemon_running && daemon_ready
+      unless daemon_running
+        Rails.logger.info "Starting TTS daemon..."
+        
+        # Start daemon in background
+        python_cmd = Rails.root.join('Qwen3-TTS', 'venv', 'bin', 'python3').to_s
+        python_cmd = "python3" unless File.exist?(python_cmd)
+        
+        system(
+          "#{python_cmd} #{Rails.root}/app/services/tts_daemon.py > #{Rails.root}/tts_daemon.log 2>&1 &"
+        )
+        
+        # Wait for daemon to be ready
+        Rails.logger.info "Waiting for TTS daemon to start..."
+        daemon_started = false
+        60.times do
+          if system("pgrep -f tts_daemon.py > /dev/null")
+            daemon_started = true
+            break
+          end
+          sleep 1
+        end
+        
+        unless daemon_started
+          raise "Failed to start TTS daemon"
+        end
+      end
       
-      # Start daemon in background
-      python_cmd = Rails.root.join('Qwen3-TTS', 'venv', 'bin', 'python3').to_s
-      python_cmd = "python3" unless File.exist?(python_cmd)
-      
-      system(
-        "#{python_cmd} #{Rails.root}/app/services/tts_daemon.py > #{Rails.root}/tts_daemon.log 2>&1 &"
-      )
-      
-      # Wait for daemon to be ready
-      Rails.logger.info "Waiting for TTS daemon to start..."
-      60.times do
-        break if system("pgrep -f tts_daemon.py > /dev/null")
+      # Wait for daemon to be ready (health check file)
+      Rails.logger.info "Waiting for TTS daemon to be ready..."
+      ready_timeout = 60
+      ready_timeout.times do
+        if File.exist?("/tmp/tts_daemon_ready")
+          Rails.logger.info "TTS daemon is ready!"
+          break
+        end
         sleep 1
       end
       
-      # Additional wait for model loading
-      Rails.logger.info "Waiting for model to load..."
-      sleep 25
+      unless File.exist?("/tmp/tts_daemon_ready")
+        raise "TTS daemon failed to become ready within #{ready_timeout} seconds"
+      end
+    else
+      Rails.logger.info "TTS daemon already ready"
     end
     
     begin
@@ -147,13 +174,22 @@ class DubbingItemsController < ApplicationController
       
     rescue => e
       Rails.logger.error "Error in TTS generation: #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
       # Clean up request file if it still exists
       File.delete(request_file) if File.exist?(request_file)
-      # Don't raise error to user, just log it
+      # Flash error message to user
+      flash[:error] = "음성 생성 중 오류가 발생했습니다: #{e.message}"
     end
 
     respond_to do |format|
-      format.turbo_stream { render turbo_stream: turbo_stream.replace(@dubbing_item, partial: "dubbing_items/dubbing_item", locals: { dubbing_item: @dubbing_item }) }
+      if flash[:error].present?
+        format.turbo_stream { 
+          render turbo_stream: turbo_stream.replace(@dubbing_item, partial: "dubbing_items/dubbing_item", locals: { dubbing_item: @dubbing_item }),
+                 status: :unprocessable_entity
+        }
+      else
+        format.turbo_stream { render turbo_stream: turbo_stream.replace(@dubbing_item, partial: "dubbing_items/dubbing_item", locals: { dubbing_item: @dubbing_item }) }
+      end
       format.html { redirect_to @project }
     end
   end

@@ -33,3 +33,30 @@
 # Ignore key files for decrypting credentials and more.
 /config/*.key
 
+# Ignore Python cache and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+/Qwen3-TTS/venv/
+*.egg-info/
+.cache/
+
+# Ignore AI model files and large binaries
+/Qwen3-TTS/Model/
+*.safetensors
+*.bin
+
+# Ignore log files
+*.log
+tts_daemon.log
+tts_server.log
+
+# Ignore vendor bundles
+/vendor/bundle/
+
+# Ignore test files
+test_video.rb
+
+# Ignore TTS audio test files
+/Qwen3-TTS/*.wav
+
