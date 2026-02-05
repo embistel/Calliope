@@ -131,7 +131,7 @@ class DubbingItemsController < ApplicationController
       elsif response['status'] == 'error'
         raise "TTS generation failed: #{response['error']}"
       elsif response['status'] == 'success' && File.exist?(wav_path)
-        Rails.logger.info "Audio generated successfully: #{response['duration']:.2f}s audio in #{response['generation_time']:.2f}s"
+        Rails.logger.info "Audio generated successfully: %.2fs audio in %.2fs" % [response['duration'], response['generation_time']]
         
         @dubbing_item.audio.attach(
           io: File.open(wav_path),
